@@ -1,33 +1,26 @@
 import 'package:flutter/services.dart';
-import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'id_card_model.dart';
 
 class IdCardGenerator {
-  final ScreenshotController screenshotController = ScreenshotController();
-
-  Future<String?> generateIdCardImage(Widget idCardWidget) async {
+  Future<String?> generateIdCardImage(GlobalKey boundaryKey) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final path = '${directory.path}/id_card_$timestamp.png';
 
-      final image = await screenshotController.captureFromWidget(
-        MaterialApp(
-          home: Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Center(child: idCardWidget),
-          ),
-        ),
-        context: null,
-        pixelRatio: ui.window.devicePixelRatio,
-      );
+      RenderRepaintBoundary boundary = 
+          boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final buffer = byteData!.buffer.asUint8List();
 
       final file = File(path);
-      await file.writeAsBytes(image);
+      await file.writeAsBytes(buffer);
       return path;
     } on PlatformException catch (e) {
       debugPrint('Failed to capture ID card: ${e.message}');
